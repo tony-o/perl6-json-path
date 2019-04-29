@@ -1,4 +1,4 @@
-use JSON::Path2;
+use JSON::Path;
 use JSON::Fast;
 use Test;
 

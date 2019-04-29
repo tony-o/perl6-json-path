@@ -11,11 +11,5 @@
     "provides": {
       "JSON::Path": "lib/JSON/Path.pm6",
       "JSON::Path::Grammar": "lib/JSON/Path/Grammar.pm6"
-    },
-    "resources": [
-      "test/jpath",
-      "test/path",
-      "test/result",
-      "test/json"
-    ]
+    }
 }

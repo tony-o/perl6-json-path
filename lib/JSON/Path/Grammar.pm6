@@ -1,123 +1,120 @@
-#use Grammar::Tracer::Compact;
 grammar JSON::Path::Grammar {
   token TOP {
-    ^ '$' <notation>+ % '.' $
+    ^ '$' <notation> $
+    { make $<notation>.made }
   }
 
   token notation {
     [
-         <dot> <func> '('\s*')'
-      |  <dot> <expr>
-      |  <dot>? '[' (
-          <wild>
-        | \' <ident> ** {1..∞} % '\',\'' \'
-        
-        )
-        ']' <filter> ** 0..1
-    ]
-    <notation>*
-    { make $/.made }
+      | <dot> <ident> ** 1 # dot then ident
+      | <dot>? '[' (
+            $<ident>='*'
+          | \' <ident> ** {1..Inf} % (\' \s* \, \s* \') \'
+        ) ']'
+    ] [<filter>|<slice>|<indices>] ** 0..1
+    <notation> ** 0..1
+    { 
+      my %val = (identities => (make @( ($/[0]<ident>//$<ident>).map({ $_.made//$_.Str }))));
+      %val<dot>      = (make $<dot>.made // '.');
+      %val<filter>   = (make $<filter>[0].made) if $<filter>[0];
+      %val<filter>   = (make $<slice>[0].made) if $<slice>[0];
+      %val<filter>   = (make $<indices>[0].made) if $<indices>[0];
+      %val<notation> = (make $<notation>[0].made) if $<notation>[0];
+      make %val;
+    }
   }
 
-  token func {
-      'length'
-    | 'stddev'
-    | 'avg'
-    | 'max'
-    | 'min'
-    { make $/.Str }
-  }
-
-  token dot {
-      '.'
-    | '..'
-    { make $/.Str }
-  }
-
-  token wild {
-    '*'
-    { make '*'.Str }
-  }
-
-  token expr {
-    <ident> <filter> ** 0..1
-    { make $/.made }
-  }
+  token dot    { ['..'|'.'] { make $/.Str.trim } }
+  token ident  { <- [.\[\-\>\<\=\&\|\'\?\s]>+ { make $/.Str } }
 
   token filter {
-      '[?'\s*'(' \s* [<nest-filter>|<bare-filter>]+ % <logic> \s* ')'\s*']'
-    | '[' <slice> ']'      #slice
-    | '[' <indices> ']'    #indices
-    { make $/.made }
+    '[?' \s* <nest> ** 1 \s* ']'
+    {
+      make $<nest>[0].made;
+    }
   }
 
-  token nest-filter {
-    \s* '(' \s* <bare-filter>+ % <logic> \s* ')' \s*
-  }
-  token bare-filter {
-    \s* <query> \s*
-  }
-
-  regex query {
-     '*'
-    | <lhs> \s* <op> \s* <rhs>
-    | <lhs>
-#    { make $/.made }
-  }
-
-  token ident {
-    <- [.\[\-\>\<\=\&\|\'\?\s]>+
-    { make $/.Str }
+  token nest {
+    '(' \s* $<filters>=(<nest>|<bare>)+ % <logic> \s* ')'
+    {
+      my (@x, @l);
+      @l.push: make $_.made for $<logic>;
+      for $<filters> -> $filter {
+        @x.push: make $filter<bare>.made if $filter<bare>;
+        @x.push: make $filter<nest>.made if $filter<nest>;
+      }
+      make { statements => @x, logic => @l };
+    }
   }
 
-  token int {
-    \d+
-    { make $/.Int }
+  token bare {
+    \s* ($<lhs>=<fexpr> \s* <op> \s* $<rhs>=<fexpr> | $<lhs>=<fexpr>) \s*
+    { 
+      make ($/[0]<rhs> 
+      ?? %(
+        lhs => (make $/[0]<lhs>.made),
+        op  => (make $/[0]<op>.made),
+        rhs => (make $/[0]<rhs>.made),
+      )
+      !! %( lhs => ( make $/[0]<lhs>.made), ));
+    }
   }
+  token fexpr {
+    [
+        $<int>=('-' ** 0..1 \d+)
+      | $<str>=(\' <ident> \')
+      | $<str>=(\" <ident> \")
+      | $<property>=('@.' <ident> )
+      | $<array>=( '[' \s* \' <ident> ** {1..Inf} % (\'\s*','\s*\') \' \s* ']')
+    ]
+    {
+      my %r;
+      if $<int> { %r<type> = 'int'; %r<val> = $<int>.Int; }
+      if $<str> { %r<type> = 'str'; %r<val> = $<str><ident>.Str; }
+      if $<array> { %r<type> = 'array'; %r<val> = |make $<array><ident>.map({ $_.made }); }
+      if $<property> { %r<type> = 'property'; %r<val> = make $<property>.Str.substr(2); }
+      make %r;
 
-  token rhs {
-      "'" <ident> "'"
-    | <int>
-    | '[' \' <ident> ** {1..∞} % '\',\'' '\']'
-    { make $/.made }
+    }
   }
-
-  token lhs {
-    '@.' [<func> '('\s*')' | <ident>]
-    { make $/.made }
+  token op {
+    [
+        '=='
+      | '<'
+      | '<='
+      | '>'
+      | '>='
+      | '-'
+      | '!='
+      | '=~'
+      |  'in' 
+      |  'subsetof' 
+      |  'size' 
+      |  'empty' 
+    ]
+    { make $/.Str.trim; }
   }
-
-  token slice {
-    <slice-from> ':' <slice-to>
-    { make $/.made }
-  }
-
-  token indices {
-    <int>+ % ','
-  }
-
-  token slice-from { \d+ { make $/.Int } }
-  token slice-to   { \d+ { make $/.Int } }
-
   token logic {
-      '||'
-    | '&&'
-    { make $/.Str }
+    \s*('&&'|'||') \s*
+    { make $/[0].Str.trim; }
   }
-
-  regex op {
-      '>'
-    | '<'
-    | '=='
-    | '-'
-    | '!='
-    | '<='
-    | '>='
-    | '=~'
-    | \s+ 'in' \s+
-    | \s+ 'subsetof' \s+
-    | \s+ 'size' \s+
-    | \s+ 'empty' \s+
-    { make $/.Str.trim }
+  token slice {
+    '[' \s* $<from>=('-' ** 0..1 \d+) ** 0..1 \s* ':' \s* $<to>=('-' ** 0..1 \d+) ** 0..1 \s* ']'
+    {
+      die "{$/.orig}\n{('=' x $/.from) ~ '^'}\n  array slice must contain at least one number"
+        if ! $<from>[0].defined && !$<to>[0].defined;
+      make %(
+        from => $<from>[0] ?? $<from>[0].Int !! Nil,
+        to   => $<to>[0] ?? $<to>[0].Int !! Nil,
+      )
+    }
   }
-}
+  token indices {
+    '[' \s* ('-' ** 0..1 \d+)+ % (\s*','\s*) \s* ']'
+    {
+      my @indices;
+      @indices.push: $_.Int for $/[0];
+      make @indices;
+    }
+  }
+};
