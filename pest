@@ -1,0 +1,33 @@
+#!/usr/bin/env perl6
+
+use lib 'lib';
+use JSON::Path2;
+use JSON::Fast;
+use Data::Dump;
+
+my @lines = |'t/xest.x'.IO.slurp.lines;
+my @jsons = |'t/xest.j'.IO.slurp.lines.map({ from-json($_) });
+my @excps = |'t/xest.p'.IO.slurp.lines.map({ from-json($_) });
+
+
+if @*ARGS[0].defined && @*ARGS[0].Int.defined {
+  say ' lines: ' ~ @lines[@*ARGS[0].Int].perl;
+  say '  json: ' ~ @jsons[@*ARGS[0].Int].perl;
+  say 'expect: ' ~ @excps[@*ARGS[0].Int].perl;
+  say filter-json(@lines[@*ARGS[0].Int], @jsons[@*ARGS[0].Int], :want-path);
+  print "\n\n";
+} else {
+  for 0 ..^ @lines.elems {
+    say ' lines: ' ~ @lines[$_].perl;
+    say '  json: ' ~ @jsons[$_].perl;
+    say 'expect: ' ~ @excps[$_].perl;
+    say filter-json(@lines[$_], @jsons[$_], :want-path);
+    print "\n\n";
+  }
+}
+
+LEAVE {
+  try '#inst'.IO.rm;
+}
+
+# vi:syntax=perl6

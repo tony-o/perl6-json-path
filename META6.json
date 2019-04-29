@@ -1,0 +1,21 @@
+{
+    "source-url": "git://github.com/tonyo/p6-json-path.git",
+    "depends": [],
+    "auth": "tonyo",
+    "name": "JSON::Path",
+    "description": "Implementation of the jsonpath for perl6",
+    "perl": "6.*",
+    "test-depends": ["JSON::Fast"],
+    "build-depends": [],
+    "version": "0.1",
+    "provides": {
+      "JSON::Path": "lib/JSON/Path.pm6",
+      "JSON::Path::Grammar": "lib/JSON/Path/Grammar.pm6"
+    },
+    "resources": [
+      "test/jpath",
+      "test/path",
+      "test/result",
+      "test/json"
+    ]
+}
