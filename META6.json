@@ -1,7 +1,7 @@
 {
     "source-url": "git://github.com/tonyo/p6-json-path.git",
     "depends": [],
-    "auth": "tonyo",
+    "auth": "zef:tony-o",
     "name": "JSON::Path",
     "description": "Implementation of the jsonpath for perl6",
     "perl": "6.*",
