@@ -7,7 +7,7 @@
     "perl": "6.*",
     "test-depends": ["JSON::Fast"],
     "build-depends": [],
-    "version": "0.1",
+    "version": "0.2",
     "license": "Artistic-2.0",
     "meta-version": "0",
     "authors": ["Tony O'Dell"],
