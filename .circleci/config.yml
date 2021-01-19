@@ -11,6 +11,7 @@ jobs:
       - run: 
           name: install build deps
           command: |
+              apt install -y curl
               zef install --deps-only .
       - run:
           name: test 

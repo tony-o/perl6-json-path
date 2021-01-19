@@ -17,7 +17,6 @@ my $modifier-rw = sub ($val is rw) {
 my $path = '$.a.b';
 plan 3;
 
-use Data::Dump;
 filter-json($path, %data, :assign($modifier-rw));
 
 ok %data<a><b> == 10, 'pass by ref to assignment can affect original object';
